@@ -39,6 +39,7 @@ import MutationCountCache from "shared/cache/MutationCountCache";
 import DiscreteCNACache from "shared/cache/DiscreteCNACache";
 import PdbHeaderCache from "shared/cache/PdbHeaderCache";
 import {
+    fetchPathwaysWithGeneSymbols,
     cancerTypeForOncoKb,
     fetchCnaOncoKbDataWithNumericGeneMolecularData,
     fetchCopyNumberSegmentsForSamples,
@@ -161,12 +162,12 @@ import {Group} from "../../shared/api/ComparisonGroupClient";
 import {AppStore} from "../../AppStore";
 import {CLINICAL_TRACKS_URL_PARAM} from "../../shared/components/oncoprint/ResultsViewOncoprint";
 import {getNumSamples} from "../groupComparison/GroupComparisonUtils";
+import { PathwayRecord } from "shared/model/PathwayRecord";
 
 type Optional<T> = (
     {isApplicable: true, value: T}
     | {isApplicable: false, value?: undefined}
 );
-
 
 export const AlterationTypeConstants = {
     MUTATION_EXTENDED: 'MUTATION_EXTENDED',
@@ -3142,11 +3143,48 @@ export class ResultsViewPageStore {
             this.studyToDataQueryFilter.result);
     }
 
+    /*
+    // For testing
+    readonly pathwayTempData = [
+        {
+            pathwayId: "WP1742",
+            pathwayScore: "3.933451",
+            pathwayUrl: "https://www.wikipathways.org/index.php/Pathway:WP1742",
+            pathwayName: "TP53 Network",
+            species: "Homo sapiens",
+            revision: 85548,
+            hugoGeneSymbol: "TP53",
+        }, {
+            pathwayId: "WP1742",
+            pathwayScore: "3.933451",
+            pathwayUrl: "https://www.wikipathways.org/index.php/Pathway:WP1742",
+            pathwayName: "EGFR Network",
+            species: "Homo sapiens",
+            revision: 85548,
+            hugoGeneSymbol: "EGFR",
+        }
+    ]
+    */
+
+    readonly pathwayData = remoteData<PathwayRecord[]>({
+        await: ()=> [
+            this.genes
+        ],
+        invoke: () => {
+            const genes = _.flatMap(this.genes.result, (gene:Gene)=>{
+                return gene.hugoGeneSymbol
+            });
+
+            // console.log("The Genes: ", this.genes.result, this.genes.status, genes)
+            return Promise.resolve(fetchPathwaysWithGeneSymbols(genes, 'Homo sapiens'));
+        }
+    }, []);
+
     readonly geneMolecularDataCache = remoteData({
         await:()=>[
             this.molecularProfileIdToDataQueryFilter
         ],
-        invoke: ()=>{
+        invoke: async ()=>{
             return Promise.resolve(
                 new GeneMolecularDataCache(
                     this.molecularProfileIdToDataQueryFilter.result
