@@ -24,7 +24,8 @@ export enum ResultsViewTab {
     CN_SEGMENTS="cnSegments",
     NETWORK="network",
     EXPRESSION="expression",
-    DOWNLOAD="download"
+    DOWNLOAD="download",
+    PATHWAY="pathway",
 }
 
 export function getTabId(pathname:string) {
@@ -49,7 +50,8 @@ export function parseConfigDisabledTabs(configDisabledTabsParam:string){
         "IGV":ResultsViewTab.CN_SEGMENTS,
         "network":ResultsViewTab.NETWORK,
         "expression":ResultsViewTab.EXPRESSION,
-        "download":ResultsViewTab.DOWNLOAD
+        "download":ResultsViewTab.DOWNLOAD,
+        "pathway":ResultsViewTab.PATHWAY,
     };
     return configDisabledTabsParam.split(",").map((s)=>s.trim()).map(str=>{
         if (str in oldTabToNewTabRoute) {

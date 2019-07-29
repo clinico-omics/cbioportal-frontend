@@ -25,6 +25,8 @@ import autobind from "autobind-decorator";
 import {ITabConfiguration} from "../../shared/model/ITabConfiguration";
 import getBrowserWindow from "../../shared/lib/getBrowserWindow";
 import CoExpressionTab from "./coExpression/CoExpressionTab";
+import PathwayViewer from "./pathwayViewer/PathwayViewer";
+import WindowStore from "../../shared/components/window/WindowStore";
 import Helmet from "react-helmet";
 import {showCustomTab} from "../../shared/lib/customTabs";
 import {getTabId, parseConfigDisabledTabs, parseSamplesSpecifications, ResultsViewTab} from "./ResultsViewPageHelpers";
@@ -350,13 +352,26 @@ export default class ResultsViewPage extends React.Component<IResultsViewPagePro
             },
 
             {
+                id: ResultsViewTab.PATHWAY,
+                getTab: () => {
+                    // console.log("PathwayViewer: ", ResultsViewTab.PATHWAY, store.pathwayData.status, store.genes)
+                    return <MSKTab key={12} id={ResultsViewTab.PATHWAY} linkText="Pathway Report">
+                        {
+                            (store.genes.isComplete && store.pathwayData.isComplete) && 
+                            (<PathwayViewer iframeHeight={WindowStore.size.height - 160} pathways={store.pathwayData.result} />)
+                        }
+                    </MSKTab>
+                }
+            },
+
+            {
                 id:ResultsViewTab.DOWNLOAD,
                 getTab: () => {
                     return <MSKTab key={11} id={ResultsViewTab.DOWNLOAD} linkText={'Download'}>
                         <DownloadTab store={store}/>
                     </MSKTab>
                 }
-            }
+            },
         ];
 
         let filteredTabs = tabMap.filter(this.evaluateTabInclusion).map((tab)=>tab.getTab());

@@ -41,6 +41,9 @@ import GenomeNexusAPI from "shared/api/generated/GenomeNexusAPI";
 import {AlterationTypeConstants} from "../../pages/resultsView/ResultsViewPageStore";
 import {stringListToIndexSet} from "public-lib/lib/StringUtils";
 import {GeneticTrackDatum_Data} from "../components/oncoprint/Oncoprint";
+import request from "superagent";
+import {PathwayRecord, PathwayRawRecord} from "../model/PathwayRecord";
+import { match } from 'minimatch';
 
 export const ONCOKB_DEFAULT: IOncoKbData = {
     uniqueSampleKeyToTumorType : {},
@@ -52,6 +55,70 @@ export type MutationIdGenerator = (mutation:Mutation) => string;
 export interface IDataQueryFilter {
     sampleIds?: string[];
     sampleListId?: string;
+}
+
+export type PathwayRecords = {
+    [pathwayId:string]:PathwayRecord;
+};
+
+export type PathwayRawRecords = {
+    [pathwayId:string]:PathwayRawRecord;
+}
+
+export async function fetchPathwaysWithGeneSymbols(hugoGeneSymbols: string[], species?: string) {
+        function convertData(pathwayRawRecord: PathwayRawRecord, gene: string): PathwayRecord {
+            let pathway = {
+                pathwayId: pathwayRawRecord.id,
+                pathwayScore: pathwayRawRecord.score["0"],
+                pathwayUrl: pathwayRawRecord.url,
+                pathwayName: pathwayRawRecord.name,
+                species: pathwayRawRecord.species,
+                revision: pathwayRawRecord.revision,
+                hugoGeneSymbol: gene
+            }
+            return pathway
+        }
+
+        const pathwayRecords:PathwayRecords = await new Promise<PathwayRecords>((resolve, reject) => {
+            // TODO better to separate this call to a configurable client
+            request.get('https://webservice.wikipathways.org/findPathwaysByText')
+                .query({format: 'json'})
+                .query({species: species})
+                .query({query: hugoGeneSymbols.join('+or+')})
+                .end((err, res)=>{
+                    if (!err && res.ok) {
+                        const response = JSON.parse(res.text);
+                        const result = response.result;
+                        const ret:PathwayRecords = {};
+                        const nums = hugoGeneSymbols.length
+                        
+                        let filteredResult = result
+                        if (nums < result.length) {
+                            filteredResult = result.slice(0, nums)
+                        }
+
+                        for (let item of filteredResult) {
+                            // hugoGeneSymbol is used to highlight gene(s) in pathway.
+                            // It can be one gene or gene list, e.g. TP53 or TP53,EGFR
+                            ret[item.id] = convertData(item, hugoGeneSymbols.join(','));
+                        }
+                        resolve(ret);
+                    } else {
+                        reject(err);
+                    }
+                });
+        });
+
+        if (hugoGeneSymbols.length > 0) {
+            const ret: PathwayRecord[] = [];
+            for (const pathwayId of Object.keys(pathwayRecords)) {
+                ret.push(pathwayRecords[pathwayId]);
+            }
+
+            return ret;
+        } else {
+            return [];
+        }
 }
 
 export async function fetchMutationData(mutationFilter:MutationFilter,
