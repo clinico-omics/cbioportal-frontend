@@ -94,7 +94,7 @@ import {
     GenesetMolecularData
 } from "../../shared/api/generated/CBioPortalAPIInternal";
 import internalClient from "../../shared/api/cbioportalInternalClientInstance";
-import {CancerGene, IndicatorQueryResp} from "../../shared/api/generated/OncoKbAPI";
+import {CancerGene, IndicatorQueryResp} from "../../public-lib/api/generated/OncoKbAPI";
 import {getAlterationString} from "../../shared/lib/CopyNumberUtils";
 import memoize from "memoize-weak-decorator";
 import request from "superagent";
@@ -129,7 +129,7 @@ import ClinicalDataCache, {
 import {getDefaultMolecularProfiles} from "../../shared/lib/getDefaultMolecularProfiles";
 import {getProteinPositionFromProteinChange} from "public-lib/lib/ProteinChangeUtils";
 import {isMutation} from "../../shared/lib/CBioPortalAPIUtils";
-import {VariantAnnotation} from "shared/api/generated/GenomeNexusAPI";
+import {VariantAnnotation} from "public-lib/api/generated/GenomeNexusAPI";
 import {ServerConfigHelpers} from "../../config/config";
 import {
     populateSampleSpecificationsFromVirtualStudies, ResultsViewTab,
