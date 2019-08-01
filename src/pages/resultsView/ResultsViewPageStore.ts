@@ -3208,7 +3208,7 @@ export class ResultsViewPageStore {
         await:()=>[
             this.molecularProfileIdToDataQueryFilter
         ],
-        invoke: async ()=>{
+        invoke: ()=>{
             return Promise.resolve(
                 new GeneMolecularDataCache(
                     this.molecularProfileIdToDataQueryFilter.result
