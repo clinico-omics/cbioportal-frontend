@@ -26,6 +26,7 @@ export enum ResultsViewTab {
     EXPRESSION="expression",
     DOWNLOAD="download",
     PATHWAY="pathway",
+    PREMEDKB="premedkb",
 }
 
 export function getTabId(pathname:string) {
@@ -52,6 +53,7 @@ export function parseConfigDisabledTabs(configDisabledTabsParam:string){
         "expression":ResultsViewTab.EXPRESSION,
         "download":ResultsViewTab.DOWNLOAD,
         "pathway":ResultsViewTab.PATHWAY,
+        "premedkb":ResultsViewTab.PREMEDKB,
     };
     return configDisabledTabsParam.split(",").map((s)=>s.trim()).map(str=>{
         if (str in oldTabToNewTabRoute) {

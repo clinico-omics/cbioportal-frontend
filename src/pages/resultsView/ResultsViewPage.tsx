@@ -26,6 +26,7 @@ import {ITabConfiguration} from "../../shared/model/ITabConfiguration";
 import getBrowserWindow from "../../shared/lib/getBrowserWindow";
 import CoExpressionTab from "./coExpression/CoExpressionTab";
 import PathwayViewer from "./pathwayViewer/PathwayViewer";
+import PreMedKBViewer from "./premedkb/PreMedKB";
 import WindowStore from "../../shared/components/window/WindowStore";
 import Helmet from "react-helmet";
 import {showCustomTab} from "../../shared/lib/customTabs";
@@ -349,6 +350,18 @@ export default class ResultsViewPage extends React.Component<IResultsViewPagePro
                                 coverageInformation={store.coverageInformation.result}
                                 onRNASeqVersionChange={(version:number)=>store.expressionTabSeqVersion=version}
                             />)
+                        }
+                    </MSKTab>
+                }
+            },
+
+            {
+                id: ResultsViewTab.PREMEDKB,
+                getTab: () => {
+                    return <MSKTab key={13} id={ResultsViewTab.PREMEDKB} linkText="PreMedKB">
+                        {
+                            (store.genes.isComplete) && 
+                            (<PreMedKBViewer iframeHeight={WindowStore.size.height - 160} genes={store.genes.result} />)
                         }
                     </MSKTab>
                 }
