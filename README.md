@@ -161,3 +161,9 @@ Please make sure to not introduce any internal dependencies (from directories un
 
 Mutation Mapper component has been moved to a separate GitHub repository: [cBioPortal/react-mutation-mapper](https://github.com/cBioPortal/react-mutation-mapper).
 For more information about `react-mutation-mapper` development please see [react-mutation-mapper.md](docs/react-mutation-mapper.md).
+
+
+### Build
+```
+mvn -DskipTests clean install
+```

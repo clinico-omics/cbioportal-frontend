@@ -109,6 +109,7 @@ export default class PortalHeader extends React.Component<{ appStore:AppStore },
                         {
                            this.getTabs()
                         }
+                        <li><a href="https://www.3steps.cn" target="_blank">Contact US</a></li>
                     </ul>
                 </nav>
             </div>
