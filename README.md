@@ -164,6 +164,8 @@ For more information about `react-mutation-mapper` development please see [react
 
 
 ### Build
+
 ```
+# You need to change pom.xml with the new version before you run the following code.
 mvn -DskipTests clean install
 ```
