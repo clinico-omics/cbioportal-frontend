@@ -5,7 +5,7 @@
 
     <groupId>com.github.clinico-omics</groupId>
     <artifactId>cbioportal-frontend</artifactId>
-    <version>v3.0.4-tgmc</version>
+    <version>v3.6.9-tgmc</version>
     <packaging>jar</packaging>
 
     <build>
