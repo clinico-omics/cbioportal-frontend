@@ -1,4 +1,4 @@
-import { CountSummary } from "shared/api/generated/CBioPortalAPIInternal";
+import { CountSummary } from 'cbioportal-ts-api-client';
 
 export interface AlterationEnrichmentRow {
     checked: boolean;
@@ -7,9 +7,9 @@ export interface AlterationEnrichmentRow {
     entrezGeneId: number;
     cytoband: string;
     logRatio?: number;
-    pValue: number;
-    qValue: number;
-    value?:number; // for copy number, used in group comparison
-    groupsSet:{[id:string]:CountSummary & {alteredPercentage:number}};
-    enrichedGroup:string;
+    pValue?: number;
+    qValue?: number;
+    value?: number; // for copy number, used in group comparison
+    groupsSet: { [id: string]: CountSummary & { alteredPercentage: number } };
+    enrichedGroup?: string;
 }

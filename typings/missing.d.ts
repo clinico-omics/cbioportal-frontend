@@ -3,11 +3,11 @@ declare module '*.scss';
 declare module '*.json';
 
 // these packages are missing typings
-declare module "deep-equal-in-any-order";
+declare module 'fmin';
+declare module 'deep-equal-in-any-order';
 declare module 'object-sizeof';
-declare module 'save-svg-as-png'
+declare module 'save-svg-as-png';
 declare module 'react-file-download';
-declare module 'react-select-checked';
 declare module 'react-zeroclipboard';
 declare module 'reactableMSK';
 declare module 'redux-seamless-immutable';
@@ -37,10 +37,10 @@ declare module 'contrast';
 declare module 'react-spinkit';
 declare module 'react-portal';
 declare module 'little-loader';
-declare module 'igv/dist/igv.min.js';
+declare module 'igv';
 declare module 'react-mfb';
 declare module 'regression';
-declare module 'react-select2';
+declare module 'react-select1';
 declare module 'react-select';
 declare module 'pluralize';
 declare module 'svg2pdf.js';
@@ -48,3 +48,9 @@ declare module 'jspdf-yworks';
 declare module '3dmol';
 declare module 'reactour';
 declare module 'react-reveal';
+declare module 'react-column-resizer';
+declare module 'linear-algebra';
+declare module 'Cheerio';
+
+// this is to silence annoying Cheerio ts error from enzyme
+type Cheerio = any;

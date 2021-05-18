@@ -1,126 +1,100 @@
-import * as React from "react";
-import * as _ from "lodash";
-import $ from "jquery";
+import * as React from 'react';
+import * as _ from 'lodash';
+import $ from 'jquery';
 import URL from 'url';
-import {inject, observer} from "mobx-react";
-import {computed, observable, reaction, runInAction} from "mobx";
-import {ResultsViewPageStore} from "./ResultsViewPageStore";
-import CancerSummaryContainer from "pages/resultsView/cancerSummary/CancerSummaryContainer";
-import Mutations from "./mutation/Mutations";
-import MutualExclusivityTab from "./mutualExclusivity/MutualExclusivityTab";
-import SurvivalTab from "./survival/SurvivalTab";
-import DownloadTab from "./download/DownloadTab";
-import AppConfig from "appConfig";
-import CNSegments from "./cnSegments/CNSegments";
-import "./styles.scss";
-import Network from "./network/Network";
-import ResultsViewOncoprint from "shared/components/oncoprint/ResultsViewOncoprint";
-import QuerySummary from "./querySummary/QuerySummary";
-import ExpressionWrapper from "./expression/ExpressionWrapper";
-import EnrichmentsTab from "pages/resultsView/enrichments/EnrichmentsTab";
-import PlotsTab from "./plots/PlotsTab";
-import {MSKTab, MSKTabs} from "../../shared/components/MSKTabs/MSKTabs";
-import {PageLayout} from "../../shared/components/PageLayout/PageLayout";
-import autobind from "autobind-decorator";
-import {ITabConfiguration} from "../../shared/model/ITabConfiguration";
-import getBrowserWindow from "../../shared/lib/getBrowserWindow";
-import CoExpressionTab from "./coExpression/CoExpressionTab";
-import PathwayViewer from "./pathwayViewer/PathwayViewer";
-import PreMedKBViewer from "./premedkb/PreMedKB";
-import WindowStore from "../../shared/components/window/WindowStore";
-import Helmet from "react-helmet";
-import {showCustomTab} from "../../shared/lib/customTabs";
-import {getTabId, parseConfigDisabledTabs, parseSamplesSpecifications, ResultsViewTab} from "./ResultsViewPageHelpers";
-import {buildResultsViewPageTitle, doesQueryHaveCNSegmentData} from "./ResultsViewPageStoreUtils";
-import {AppStore} from "../../AppStore";
-import {updateResultsViewQuery} from "./ResultsViewQuery";
-import {trackQuery} from "../../shared/lib/tracking";
-import {onMobxPromise} from "../../shared/lib/onMobxPromise";
-import QueryAndDownloadTabs from "shared/components/query/QueryAndDownloadTabs";
-import {createQueryStore} from "pages/home/HomePage";
-import ExtendedRouterStore from "shared/lib/ExtendedRouterStore";
+import { inject, observer } from 'mobx-react';
+import {
+    action,
+    computed,
+    observable,
+    reaction,
+    runInAction,
+    makeObservable,
+} from 'mobx';
+import { ResultsViewPageStore } from './ResultsViewPageStore';
+import CancerSummaryContainer from 'pages/resultsView/cancerSummary/CancerSummaryContainer';
+import Mutations from './mutation/Mutations';
+import MutualExclusivityTab from './mutualExclusivity/MutualExclusivityTab';
+import DownloadTab from './download/DownloadTab';
+import AppConfig from 'appConfig';
+import CNSegments from './cnSegments/CNSegments';
+import './styles.scss';
+import ResultsViewPathwayMapper from './pathwayMapper/ResultsViewPathwayMapper';
+import ResultsViewOncoprint from 'shared/components/oncoprint/ResultsViewOncoprint';
+import QuerySummary from './querySummary/QuerySummary';
+import ExpressionWrapper from './expression/ExpressionWrapper';
+import PlotsTab from './plots/PlotsTab';
+import { MSKTab, MSKTabs } from '../../shared/components/MSKTabs/MSKTabs';
+import { PageLayout } from '../../shared/components/PageLayout/PageLayout';
+import autobind from 'autobind-decorator';
+import { ITabConfiguration } from '../../shared/model/ITabConfiguration';
+import { getBrowserWindow, remoteData } from 'cbioportal-frontend-commons';
+import CoExpressionTab from './coExpression/CoExpressionTab';
+import Helmet from 'react-helmet';
+import { showCustomTab } from '../../shared/lib/customTabs';
+import {
+    parseConfigDisabledTabs,
+    ResultsViewTab,
+} from './ResultsViewPageHelpers';
+import {
+    buildResultsViewPageTitle,
+    doesQueryHaveCNSegmentData,
+} from './ResultsViewPageStoreUtils';
+import { AppStore } from '../../AppStore';
+import { trackQuery } from '../../shared/lib/tracking';
+import QueryAndDownloadTabs from 'shared/components/query/QueryAndDownloadTabs';
+import ExtendedRouterStore from 'shared/lib/ExtendedRouterStore';
+import GeneSymbolValidationError from 'shared/components/query/GeneSymbolValidationError';
+import ResultsViewURLWrapper from 'pages/resultsView/ResultsViewURLWrapper';
+import setWindowVariable from 'shared/lib/setWindowVariable';
+import LoadingIndicator from 'shared/components/loadingIndicator/LoadingIndicator';
+import onMobxPromise from 'shared/lib/onMobxPromise';
+import { createQueryStore } from 'shared/lib/createQueryStore';
+import {
+    handleLegacySubmission,
+    handlePostedSubmission,
+} from 'shared/lib/redirectHelpers';
+import ComparisonTab from './comparison/ComparisonTab';
+import OQLTextArea, {
+    GeneBoxType,
+} from 'shared/components/GeneSelectionBox/OQLTextArea';
+import browser from 'bowser';
+import { QueryStore } from '../../shared/components/query/QueryStore';
+import UserMessager from 'shared/components/userMessager/UserMessage';
+import PathwayViewer from './pathwayViewer/PathwayViewer';
+import PreMedKBViewer from './premedkb/PreMedKB';
+import WindowStore from 'shared/components/window/WindowStore';
 
-function initStore(appStore:AppStore) {
+export function initStore(
+    appStore: AppStore,
+    urlWrapper: ResultsViewURLWrapper
+) {
+    const resultsViewPageStore = new ResultsViewPageStore(appStore, urlWrapper);
 
-    const resultsViewPageStore = new ResultsViewPageStore(appStore, getBrowserWindow().globalStores.routing);
+    setWindowVariable('resultsViewPageStore', resultsViewPageStore);
 
-    resultsViewPageStore.tabId = getTabId(getBrowserWindow().globalStores.routing.location.pathname);
-
-    let lastQuery:any;
-    let lastPathname:string;
-
-    const queryReactionDisposer = reaction(
+    reaction(
+        () => [resultsViewPageStore.studyIds, resultsViewPageStore.oqlText],
         () => {
-            return [getBrowserWindow().globalStores.routing.query, getBrowserWindow().globalStores.routing.location.pathname];
-        },
-        (x:any) => {
-
-            const query = x[0];
-            const pathname = x[1];
-
-            // escape from this if queryies are deeply equal
-            // TODO: see if we can figure out why query is getting changed and
-            // if there's any way to do shallow equality check to avoid this expensive operation
-            const queryChanged = !_.isEqual(lastQuery, query);
-            const pathnameChanged = (pathname !== lastPathname);
-            if (!queryChanged && !pathnameChanged) {
-                return;
-            } else {
-
-                if (!getBrowserWindow().globalStores.routing.location.pathname.includes("/results")) {
-                   return;
-                }
-                runInAction(()=>{
-                    // set query and pathname separately according to which changed, to avoid unnecessary
-                    //  recomputation by updating the query if only the pathname changed
-                    if (queryChanged) {
-                        // update query
-                        // normalize cancer_study_list this handles legacy sessions/urls where queries with single study had different param name
-                        const cancer_study_list = query.cancer_study_list || query.cancer_study_id;
-
-                        const cancerStudyIds: string[] = cancer_study_list.split(",");
-
-                        const oql = decodeURIComponent(query.gene_list);
-
-                        let samplesSpecification = parseSamplesSpecifications(query, cancerStudyIds);
-
-                        const changes = updateResultsViewQuery(resultsViewPageStore.rvQuery, query, samplesSpecification, cancerStudyIds, oql);
-                        if (changes.cohortIdsList) {
-                            resultsViewPageStore.initDriverAnnotationSettings();
-                        }
-
-                        onMobxPromise(resultsViewPageStore.studyIds, ()=>{
-                            try {
-                                trackQuery(resultsViewPageStore.studyIds.result!, oql, resultsViewPageStore.hugoGeneSymbols, resultsViewPageStore.queriedVirtualStudies.result!.length > 0);
-                            } catch {};
-                        });
-
-                        lastQuery = query;
-                    }
-                    if (pathnameChanged) {
-                        // need to set tab like this instead of with injected via params.tab because we need to set the tab
-                        //  at the same time as we set the query parameters, otherwise we get race conditions where the tab
-                        //  we're on at the time we update the query doesnt get unmounted because we change the query, causing
-                        //  MSKTabs unmounting, THEN change the tab.
-                        const tabId = getTabId(pathname);
-                        if (resultsViewPageStore.tabId !== tabId) {
-                            resultsViewPageStore.tabId = tabId;
-                        }
-                        lastPathname = pathname;
-                    }
-                });
+            if (
+                resultsViewPageStore.studyIds.isComplete &&
+                resultsViewPageStore.oqlText
+            ) {
+                trackQuery(
+                    resultsViewPageStore.studyIds.result!,
+                    resultsViewPageStore.oqlText,
+                    resultsViewPageStore.hugoGeneSymbols,
+                    resultsViewPageStore.queriedVirtualStudies.result!.length >
+                        0
+                );
             }
-        },
-        {fireImmediately: true}
+        }
     );
-
-    resultsViewPageStore.queryReactionDisposer = queryReactionDisposer;
 
     return resultsViewPageStore;
 }
 
-
-function addOnBecomeVisibleListener(callback:()=>void) {
+function addOnBecomeVisibleListener(callback: () => void) {
     $('#oncoprint-result-tab').click(callback);
 }
 
@@ -130,408 +104,726 @@ export interface IResultsViewPageProps {
     params: any; // from react router
 }
 
-@inject('appStore','routing')
+@inject('appStore', 'routing')
 @observer
-export default class ResultsViewPage extends React.Component<IResultsViewPageProps, {}> {
-
+export default class ResultsViewPage extends React.Component<
+    IResultsViewPageProps,
+    {}
+> {
     private resultsViewPageStore: ResultsViewPageStore;
+
+    private urlWrapper: ResultsViewURLWrapper;
+
+    @observable.ref quickOQLQueryStore: QueryStore | null = null;
 
     @observable showTabs = true;
 
     constructor(props: IResultsViewPageProps) {
         super(props);
 
-        this.resultsViewPageStore = initStore(props.appStore);
+        makeObservable(this);
 
-        getBrowserWindow().resultsViewPageStore = this.resultsViewPageStore;
-    }
+        this.urlWrapper = new ResultsViewURLWrapper(props.routing);
 
-    private handleTabChange(id: string, replace?:boolean) {
-        this.props.routing.updateRoute({},`results/${id}`, false, replace);
+        handleLegacySubmission(this.urlWrapper);
+
+        handlePostedSubmission(this.urlWrapper);
+
+        setWindowVariable('urlWrapper', this.urlWrapper);
+
+        if (this.urlWrapper.hasSessionId) {
+            onMobxPromise(this.urlWrapper.remoteSessionData, () => {
+                this.resultsViewPageStore = initStore(
+                    props.appStore,
+                    this.urlWrapper
+                );
+            });
+        } else {
+            this.resultsViewPageStore = initStore(
+                props.appStore,
+                this.urlWrapper
+            );
+        }
     }
 
     @autobind
-    private customTabCallback(div:HTMLDivElement,tab:any, isUnmount = false){
-        showCustomTab(div, tab, getBrowserWindow().location.href, this.resultsViewPageStore, isUnmount);
+    private customTabCallback(
+        div: HTMLDivElement,
+        tab: any,
+        isUnmount = false
+    ) {
+        showCustomTab(
+            div,
+            tab,
+            getBrowserWindow().location.href,
+            this.resultsViewPageStore,
+            isUnmount
+        );
     }
 
-    componentWillUnmount(){
-        this.resultsViewPageStore.queryReactionDisposer();
+    componentWillUnmount() {
+        this.resultsViewPageStore.destroy();
+        this.urlWrapper.destroy();
     }
 
     @computed
     private get tabs() {
-
         const store = this.resultsViewPageStore;
 
-        const tabMap:ITabConfiguration[] = [
-
+        const tabMap: ITabConfiguration[] = [
             {
-                id:ResultsViewTab.ONCOPRINT,
+                id: ResultsViewTab.ONCOPRINT,
                 getTab: () => {
-                    return <MSKTab key={0} id={ResultsViewTab.ONCOPRINT} linkText="OncoPrint">
-                        <ResultsViewOncoprint
-                            divId={'oncoprintDiv'}
-                            store={store}
-                            key={store.hugoGeneSymbols.join(",")}
-                            routing={this.props.routing}
-                            addOnBecomeVisibleListener={addOnBecomeVisibleListener}
-                        />
-                    </MSKTab>
-                }
-            },
-
-            {
-                id:ResultsViewTab.CANCER_TYPES_SUMMARY,
-                getTab: () => {
-                    return (<MSKTab key={1} id={ResultsViewTab.CANCER_TYPES_SUMMARY} linkText="Cancer Types Summary">
-                        <CancerSummaryContainer
-                            store={store}
-                        />
-                    </MSKTab>)
-                }
-            },
-
-            {
-                id:ResultsViewTab.MUTUAL_EXCLUSIVITY,
-                getTab: () => {
-                    return <MSKTab key={5} id={ResultsViewTab.MUTUAL_EXCLUSIVITY} linkText="Mutual Exclusivity">
-                        <MutualExclusivityTab store={store} isSampleAlteredMap={store.isSampleAlteredMap}/>
-                    </MSKTab>
+                    return (
+                        <MSKTab
+                            key={0}
+                            id={ResultsViewTab.ONCOPRINT}
+                            linkText="OncoPrint"
+                        >
+                            <ResultsViewOncoprint
+                                divId={'oncoprintDiv'}
+                                store={store}
+                                urlWrapper={store.urlWrapper}
+                                key={store.hugoGeneSymbols.join(',')}
+                                addOnBecomeVisibleListener={
+                                    addOnBecomeVisibleListener
+                                }
+                            />
+                        </MSKTab>
+                    );
                 },
-                hide:()=>{
+            },
+
+            {
+                id: ResultsViewTab.CANCER_TYPES_SUMMARY,
+                getTab: () => {
+                    return (
+                        <MSKTab
+                            key={1}
+                            id={ResultsViewTab.CANCER_TYPES_SUMMARY}
+                            linkText="Cancer Types Summary"
+                        >
+                            <CancerSummaryContainer store={store} />
+                        </MSKTab>
+                    );
+                },
+            },
+
+            {
+                id: ResultsViewTab.MUTUAL_EXCLUSIVITY,
+                getTab: () => {
+                    return (
+                        <MSKTab
+                            key={5}
+                            id={ResultsViewTab.MUTUAL_EXCLUSIVITY}
+                            linkText="Mutual Exclusivity"
+                        >
+                            <MutualExclusivityTab
+                                store={store}
+                                isSampleAlteredMap={store.isSampleAlteredMap}
+                            />
+                        </MSKTab>
+                    );
+                },
+                hide: () => {
                     // we are using the size of isSampleAlteredMap as a proxy for the number of things we have to compare
-                    return !this.resultsViewPageStore.isSampleAlteredMap.isComplete || _.size(this.resultsViewPageStore.isSampleAlteredMap.result) < 2;
-                }
-            },
-
-            {
-                id:ResultsViewTab.PLOTS,
-                hide:()=>{
-                    if (!this.resultsViewPageStore.studies.isComplete) {
-                        return true;
-                    } else {
-                        return this.resultsViewPageStore.studies.result!.length > 1;
-                    }
+                    return (
+                        !this.resultsViewPageStore.isSampleAlteredMap
+                            .isComplete ||
+                        _.size(
+                            this.resultsViewPageStore.isSampleAlteredMap.result
+                        ) < 2
+                    );
                 },
-                getTab: () => {
-                    return <MSKTab key={12} id={ResultsViewTab.PLOTS} linkText={'Plots'}>
-                        <PlotsTab store={store}/>
-                    </MSKTab>
-                }
             },
 
             {
-                id:ResultsViewTab.MUTATIONS,
+                id: ResultsViewTab.PLOTS,
                 getTab: () => {
-                    return <MSKTab key={3} id={ResultsViewTab.MUTATIONS} linkText="Mutations">
-                        <Mutations store={store} appStore={ this.props.appStore } />
-                    </MSKTab>
-                }
+                    return (
+                        <MSKTab
+                            key={12}
+                            id={ResultsViewTab.PLOTS}
+                            linkText={'Plots'}
+                        >
+                            <PlotsTab
+                                store={store}
+                                urlWrapper={this.urlWrapper}
+                            />
+                        </MSKTab>
+                    );
+                },
             },
 
             {
-                id:ResultsViewTab.COEXPRESSION,
-                hide:()=>{
-                    if (!this.resultsViewPageStore.isThereDataForCoExpressionTab.isComplete ||
-                        !this.resultsViewPageStore.studies.isComplete) {
+                id: ResultsViewTab.MUTATIONS,
+                getTab: () => {
+                    return (
+                        <MSKTab
+                            key={3}
+                            id={ResultsViewTab.MUTATIONS}
+                            linkText="Mutations"
+                        >
+                            <Mutations
+                                store={store}
+                                appStore={this.props.appStore}
+                                urlWrapper={this.urlWrapper}
+                            />
+                        </MSKTab>
+                    );
+                },
+            },
+
+            {
+                id: ResultsViewTab.COEXPRESSION,
+                hide: () => {
+                    if (
+                        !this.resultsViewPageStore.isThereDataForCoExpressionTab
+                            .isComplete ||
+                        !this.resultsViewPageStore.studies.isComplete
+                    ) {
                         return true;
                     } else {
-                        const tooManyStudies = this.resultsViewPageStore.studies.result!.length > 1;
-                        const noData = !this.resultsViewPageStore.isThereDataForCoExpressionTab.result;
+                        const tooManyStudies =
+                            this.resultsViewPageStore.studies.result!.length >
+                            1;
+                        const noData = !this.resultsViewPageStore
+                            .isThereDataForCoExpressionTab.result;
                         return tooManyStudies || noData;
                     }
                 },
                 getTab: () => {
-                    return <MSKTab key={7} id={ResultsViewTab.COEXPRESSION} linkText={'Co-expression'}>
-                        <CoExpressionTab
-                            store={store}
-                        />
-                    </MSKTab>
-                }
+                    return (
+                        <MSKTab
+                            key={7}
+                            id={ResultsViewTab.COEXPRESSION}
+                            linkText={'Co-expression'}
+                        >
+                            <CoExpressionTab store={store} />
+                        </MSKTab>
+                    );
+                },
             },
 
             {
-                id:ResultsViewTab.ENRICHMENTS,
-                hide:()=>{
-                    if (!this.resultsViewPageStore.studies.isComplete) {
-                        return true;
-                    } else {
-                        return this.resultsViewPageStore.studies.result!.length > 1;
-                    }
+                id: ResultsViewTab.COMPARISON,
+                hide: () => {
+                    return this.resultsViewPageStore.survivalClinicalDataExists
+                        .isPending;
                 },
                 getTab: () => {
-                    return <MSKTab key={10} id={ResultsViewTab.ENRICHMENTS} linkText={'Enrichments'}>
-                        <EnrichmentsTab store={store}/>
-                    </MSKTab>
-                }
-            },
-
-            {
-                id:ResultsViewTab.SURVIVAL,
-                hide:()=>{
-                    return !this.resultsViewPageStore.survivalClinicalDataExists.isComplete ||
-                        !this.resultsViewPageStore.survivalClinicalDataExists.result!;
+                    const text = this.resultsViewPageStore
+                        .survivalClinicalDataExists.result
+                        ? 'Comparison/Survival'
+                        : 'Comparison';
+                    return (
+                        <MSKTab
+                            key={10}
+                            id={ResultsViewTab.COMPARISON}
+                            linkText={text}
+                        >
+                            <ComparisonTab
+                                urlWrapper={this.urlWrapper}
+                                appStore={this.props.appStore}
+                                store={this.resultsViewPageStore}
+                            />
+                        </MSKTab>
+                    );
                 },
-                getTab: () => {
-                    return <MSKTab key={4} id={ResultsViewTab.SURVIVAL} linkText="Survival">
-                        <SurvivalTab store={store}/>
-                    </MSKTab>
-                }
             },
-
             {
-                id:ResultsViewTab.CN_SEGMENTS,
-                hide:() => {
+                id: ResultsViewTab.CN_SEGMENTS,
+                hide: () => {
                     return (
                         !this.resultsViewPageStore.studies.isComplete ||
                         !this.resultsViewPageStore.genes.isComplete ||
-                        !doesQueryHaveCNSegmentData(this.resultsViewPageStore.samples.result)
+                        !this.resultsViewPageStore.referenceGenes.isComplete ||
+                        !doesQueryHaveCNSegmentData(
+                            this.resultsViewPageStore.samples.result
+                        )
                     );
                 },
                 getTab: () => {
-                    return <MSKTab key={6} id={ResultsViewTab.CN_SEGMENTS}
-                                   linkText="CN Segments">
-                        <CNSegments store={store}/>
-                    </MSKTab>
-                }
+                    return (
+                        <MSKTab
+                            key={6}
+                            id={ResultsViewTab.CN_SEGMENTS}
+                            linkText="CN Segments"
+                        >
+                            <CNSegments store={store} />
+                        </MSKTab>
+                    );
+                },
             },
 
             {
-                id:ResultsViewTab.NETWORK,
-                hide:()=>{
-                    if (!this.resultsViewPageStore.studies.isComplete) {
-                        return true;
-                    } else {
-                        return this.resultsViewPageStore.studies.result!.length > 1;
-                    }
+                id: ResultsViewTab.NETWORK,
+                hide: () => {
+                    return true;
                 },
                 getTab: () => {
-                    return <MSKTab key={9} id={ResultsViewTab.NETWORK} linkText={'Network'}>
-                        {
-                            (store.studies.isComplete && store.sampleLists.isComplete && store.samples.isComplete) &&
-                            (<Network genes={store.genes.result!}
-                                      profileIds={store.rvQuery.selectedMolecularProfileIds}
-                                      cancerStudyId={store.studies.result[0].studyId}
-                                      zScoreThreshold={store.rvQuery.zScoreThreshold}
-                                      caseSetId={(store.sampleLists.result!.length > 0) ? store.sampleLists.result![0].sampleListId : "-1"}
-                                      sampleIds={store.samples.result.map((sample)=>sample.sampleId)}
-                                      caseIdsKey={""}
-                            />)
-                        }
-                    </MSKTab>
-                }
+                    return (
+                        <MSKTab
+                            key={9}
+                            id={ResultsViewTab.NETWORK}
+                            linkText={'Network'}
+                        >
+                            <div className="alert alert-info">
+                                The Network tab has been retired. For similar
+                                functionality, please visit{' '}
+                                <a
+                                    href="http://www.pathwaycommons.org/pcviz/"
+                                    target="_blank"
+                                >
+                                    http://www.pathwaycommons.org/pcviz/
+                                </a>
+                            </div>
+                        </MSKTab>
+                    );
+                },
             },
-
             {
-                id:ResultsViewTab.EXPRESSION,
-                hide:()=> {
-                    return this.resultsViewPageStore.expressionProfiles.result.length === 0
-                        || this.resultsViewPageStore.studies.result.length < 2;
-                },
+                id: ResultsViewTab.PATHWAY_MAPPER,
+                hide: () =>
+                    browser.name === 'Internet Explorer' ||
+                    !AppConfig.serverConfig.show_pathway_mapper ||
+                    !this.resultsViewPageStore.studies.isComplete,
                 getTab: () => {
+                    const showPM =
+                        store.filteredSequencedSampleKeysByGene.isComplete &&
+                        store.oqlFilteredCaseAggregatedDataByOQLLine
+                            .isComplete &&
+                        store.genes.isComplete &&
+                        store.samples.isComplete &&
+                        store.patients.isComplete &&
+                        store.coverageInformation.isComplete &&
+                        store.filteredSequencedSampleKeysByGene.isComplete &&
+                        store.filteredSequencedPatientKeysByGene.isComplete &&
+                        store.selectedMolecularProfiles.isComplete &&
+                        store.oqlFilteredCaseAggregatedDataByUnflattenedOQLLine
+                            .isComplete;
 
-                    return <MSKTab key={8} id={ResultsViewTab.EXPRESSION}
-
-                                   linkText={'Expression'}
-                    >
-                        {
-                            (store.studyIdToStudy.isComplete
-                                && store.filteredAndAnnotatedMutations.isComplete
-                                && store.genes.isComplete
-                                && store.coverageInformation.isComplete) &&
-                            (<ExpressionWrapper store={store}
-                                studyMap={store.studyIdToStudy.result}
-                                genes={store.genes.result}
-                                expressionProfiles={store.expressionProfiles}
-                                numericGeneMolecularDataCache={store.numericGeneMolecularDataCache}
-                                mutations={store.filteredAndAnnotatedMutations.result!}
-                                RNASeqVersion={store.expressionTabSeqVersion}
-                                coverageInformation={store.coverageInformation.result}
-                                onRNASeqVersionChange={(version:number)=>store.expressionTabSeqVersion=version}
-                            />)
-                        }
-                    </MSKTab>
-                }
+                    return (
+                        <MSKTab
+                            key={13}
+                            id={ResultsViewTab.PATHWAY_MAPPER}
+                            linkText={'Pathways'}
+                        >
+                            {showPM ? (
+                                <ResultsViewPathwayMapper
+                                    store={store}
+                                    appStore={this.props.appStore}
+                                    urlWrapper={this.urlWrapper}
+                                />
+                            ) : (
+                                <LoadingIndicator
+                                    isLoading={true}
+                                    size={'big'}
+                                    center={true}
+                                />
+                            )}
+                        </MSKTab>
+                    );
+                },
             },
-
             {
                 id: ResultsViewTab.PREMEDKB,
                 getTab: () => {
-                    return <MSKTab key={13} id={ResultsViewTab.PREMEDKB} linkText="PreMedKB">
-                        {
-                            (store.genes.isComplete) && 
-                            (<PreMedKBViewer iframeHeight={WindowStore.size.height - 160} genes={store.genes.result} />)
-                        }
-                    </MSKTab>
-                }
+                    return (
+                        <MSKTab
+                            key={13}
+                            id={ResultsViewTab.PREMEDKB}
+                            linkText="PreMedKB"
+                        >
+                            {store.genes.isComplete && (
+                                <PreMedKBViewer
+                                    iframeHeight={WindowStore.size.height - 160}
+                                    genes={store.genes.result}
+                                />
+                            )}
+                        </MSKTab>
+                    );
+                },
             },
 
             {
                 id: ResultsViewTab.PATHWAY,
                 getTab: () => {
-                    // console.log("PathwayViewer: ", ResultsViewTab.PATHWAY, store.pathwayData.status, store.genes)
-                    return <MSKTab key={12} id={ResultsViewTab.PATHWAY} linkText="Pathway Report">
-                        {
-                            (store.genes.isComplete && store.pathwayData.isComplete) && 
-                            (<PathwayViewer iframeHeight={WindowStore.size.height - 160} pathways={store.pathwayData.result} />)
-                        }
-                    </MSKTab>
-                }
+                    console.log(
+                        'PathwayViewer: ',
+                        ResultsViewTab.PATHWAY,
+                        store.pathwayData.status,
+                        store.genes
+                    );
+                    return (
+                        <MSKTab
+                            key={12}
+                            id={ResultsViewTab.PATHWAY}
+                            linkText="Pathway Report"
+                        >
+                            {store.genes.isComplete &&
+                                store.pathwayData.isComplete && (
+                                    <PathwayViewer
+                                        iframeHeight={
+                                            WindowStore.size.height - 160
+                                        }
+                                        pathways={store.pathwayData.result}
+                                    />
+                                )}
+                        </MSKTab>
+                    );
+                },
             },
 
             {
-                id:ResultsViewTab.DOWNLOAD,
+                id: ResultsViewTab.DOWNLOAD,
                 getTab: () => {
-                    return <MSKTab key={11} id={ResultsViewTab.DOWNLOAD} linkText={'Download'}>
-                        <DownloadTab store={store}/>
-                    </MSKTab>
-                }
+                    return (
+                        <MSKTab
+                            key={11}
+                            id={ResultsViewTab.DOWNLOAD}
+                            linkText={'Download'}
+                        >
+                            <DownloadTab store={store} />
+                        </MSKTab>
+                    );
+                },
             },
         ];
 
-        let filteredTabs = tabMap.filter(this.evaluateTabInclusion).map((tab)=>tab.getTab());
+        let filteredTabs = tabMap
+            .filter(this.evaluateTabInclusion)
+            .map(tab => tab.getTab());
 
         // now add custom tabs
         if (AppConfig.serverConfig.custom_tabs) {
-            const customResultsTabs = AppConfig.serverConfig.custom_tabs.filter((tab: any) => tab.location === "RESULTS_PAGE").map((tab: any, i: number) => {
-                return (<MSKTab key={100 + i} id={'customTab' + i} unmountOnHide={(tab.unmountOnHide === true)}
-                                onTabDidMount={(div) => {
-                                    this.customTabCallback(div, tab);
-                                }}
-                                onTabUnmount={(div) => {
-                                    this.customTabCallback(div, tab, true);
-                                }}
-                                linkText={tab.title}
-                    />
-                )
-            });
+            const customResultsTabs = AppConfig.serverConfig.custom_tabs
+                .filter((tab: any) => tab.location === 'RESULTS_PAGE')
+                .map((tab: any, i: number) => {
+                    return (
+                        <MSKTab
+                            key={100 + i}
+                            id={'customTab' + i}
+                            unmountOnHide={tab.unmountOnHide === true}
+                            onTabDidMount={div => {
+                                this.customTabCallback(div, tab);
+                            }}
+                            onTabUnmount={div => {
+                                this.customTabCallback(div, tab, true);
+                            }}
+                            linkText={tab.title}
+                        />
+                    );
+                });
             filteredTabs = filteredTabs.concat(customResultsTabs);
         }
 
         return filteredTabs;
-
     }
 
     @autobind
-    public evaluateTabInclusion(tab:ITabConfiguration){
-        const excludedTabs = AppConfig.serverConfig.disabled_tabs || "";
-        const isExcludedInList = parseConfigDisabledTabs(excludedTabs).includes(tab.id);
-        const isRoutedTo = (this.resultsViewPageStore.tabId === tab.id);
-        const isExcluded = (tab.hide) ? tab.hide() : false;
+    public evaluateTabInclusion(tab: ITabConfiguration) {
+        const excludedTabs = AppConfig.serverConfig.disabled_tabs || '';
+        const isExcludedInList = parseConfigDisabledTabs(excludedTabs).includes(
+            tab.id
+        );
+        const isRoutedTo = this.resultsViewPageStore.tabId === tab.id;
+        const isExcluded = tab.hide ? tab.hide() : false;
 
         // we show no matter what if its routed to
         return isRoutedTo || (!isExcludedInList && !isExcluded);
     }
 
-    public currentTab(tabId:string|undefined):string {
-        // if we have no tab defined (query submission, no tab click)
-        // we need to evaluate which should be the default tab
-        // this can only be determined by know the count of physical studies in the query
-        // (for virtual studies we need to fetch data determine constituent physical studies)
-        if (tabId === undefined) {
-            if (this.resultsViewPageStore.studies.result!.length > 1 && this.resultsViewPageStore.hugoGeneSymbols.length === 1) {
-                return ResultsViewTab.CANCER_TYPES_SUMMARY; // cancer type study
-            } else {
-                return ResultsViewTab.ONCOPRINT; // this will resolve to first tab
-            }
-        } else {
-            return tabId;
+    @computed get quickOQLSubmitButton() {
+        if (this.quickOQLQueryStore) {
+            return (
+                <>
+                    <button
+                        className={'btn btn-primary btn-sm'}
+                        data-test="oqlQuickEditSubmitButton"
+                        style={{ marginLeft: 10 }}
+                        onClick={this.handleQuickOQLSubmission}
+                        disabled={!this.quickOQLQueryStore!.submitEnabled}
+                    >
+                        Submit Query
+                    </button>
+                    &nbsp;
+                    <button
+                        className={'btn btn-link btn-sm'}
+                        onClick={this.toggleOQLEditor}
+                    >
+                        Cancel
+                    </button>
+                </>
+            );
         }
     }
 
+    @computed get showOQLEditor() {
+        return !!this.quickOQLQueryStore;
+    }
+    set showOQLEditor(s: boolean) {
+        if (s) {
+            this.quickOQLQueryStore = createQueryStore(
+                this.urlWrapper.query,
+                this.urlWrapper,
+                false
+            );
+        } else {
+            this.quickOQLQueryStore = null;
+        }
+    }
+
+    @action.bound
+    handleQuickOQLSubmission() {
+        this.quickOQLQueryStore!.submit();
+        this.showOQLEditor = false;
+    }
+
+    @action.bound
+    toggleOQLEditor() {
+        this.showOQLEditor = !this.showOQLEditor;
+    }
+
     @autobind
-    private getTabHref(tabId:string) {
+    private getTabHref(tabId: string) {
         return URL.format({
-            pathname:tabId,
-            query:this.props.routing.location.query,
-            hash:this.props.routing.location.hash
+            pathname: tabId,
+            query: this.props.routing.query,
+            hash: this.props.routing.location.hash,
         });
     }
 
-    @computed get pageContent(){
-
-        if (this.resultsViewPageStore.invalidStudyIds.result.length > 0) {
-            return (<div>
-                <div className={'headBlock'}></div>
-                <QueryAndDownloadTabs
-                      forkedMode={false}
-                      showQuickSearchTab={false}
-                      showDownloadTab={false}
-                      showAlerts={true}
-                      getQueryStore={()=>createQueryStore(this.props.routing.query)}
-                />
-            </div>);
-        } else {
-            return (<>
-                {
-                    // if query invalid(we only check gene length for now), return error page
-                    (this.resultsViewPageStore.isQueryInvalid) && (
-                        <div className="alert alert-danger queryInvalid" style={{marginBottom: "15px"}} role="alert">
-                            <p>
-                                Queries are limited to 100 genes. Please <a
-                                href={`mailto:${AppConfig.serverConfig.skin_email_contact}`}>let us know</a> your use
-                                case(s) if you need to query more than 100 genes.
-                            </p>
-                        </div>
-                    )
-                }
-                {
-                    (this.resultsViewPageStore.studies.isComplete) && (
-                        <Helmet>
-                            <title>{buildResultsViewPageTitle(this.resultsViewPageStore.hugoGeneSymbols, this.resultsViewPageStore.studies.result)}</title>
-                        </Helmet>
-                    )
-                }
-                {(this.resultsViewPageStore.studies.isComplete) && (
-                    <div>
-                        <div className={'headBlock'}>
-                            <QuerySummary
-                                routingStore={this.props.routing}
-                                store={this.resultsViewPageStore}
-                                onToggleQueryFormVisiblity={(visible) => {
-                                    this.showTabs = visible;
-                                }}
-                            />
-                        </div>
-
-                        {
-                            // we don't show the result tabs if we don't have valid query
-                            (this.showTabs && !this.resultsViewPageStore.genesInvalid && !this.resultsViewPageStore.isQueryInvalid) && (
-                                <MSKTabs key={this.resultsViewPageStore.rvQuery.hash} activeTabId={this.currentTab(this.resultsViewPageStore.tabId)} unmountOnHide={false}
-                                         onTabClick={(id: string) => this.handleTabChange(id)} className="mainTabs"
-                                         getTabHref={this.getTabHref}
-                                >
-                                    {
-                                        this.tabs
+    readonly userMessages = remoteData({
+        await: () => [
+            this.resultsViewPageStore.expressionProfiles,
+            this.resultsViewPageStore.studies,
+        ],
+        invoke: () => {
+            // TODO: This is only here temporarily to shepherd users from
+            //      now-deleted Expression tab to the Plots tab.
+            //  Remove a few months after 10/2020
+            if (
+                this.resultsViewPageStore.expressionProfiles.result.length >
+                    0 &&
+                this.resultsViewPageStore.studies.result.length > 1
+            ) {
+                return Promise.resolve([
+                    {
+                        dateEnd: 10000000000000000000,
+                        content: (
+                            <span>
+                                Looking for the <strong>Expression</strong> tab?
+                                {` `}
+                                That functionality is now available{` `}
+                                <a
+                                    style={{
+                                        color: 'white',
+                                        textDecoration: 'underline',
+                                    }}
+                                    onClick={() =>
+                                        this.urlWrapper.updateURL(
+                                            {},
+                                            `results/${ResultsViewTab.EXPRESSION_REDIRECT}`
+                                        )
                                     }
-                                </MSKTabs>
+                                >
+                                    in the <strong>Plots</strong> tab.
+                                </a>
+                            </span>
+                        ),
+                        id: '2020_merge_expression_to_plots',
+                    },
+                ]);
+            } else {
+                return Promise.resolve([]);
+            }
+        },
+    });
+
+    @computed get pageContent() {
+        if (this.resultsViewPageStore.invalidStudyIds.result.length > 0) {
+            return (
+                <div>
+                    <div className={'headBlock'}></div>
+                    <QueryAndDownloadTabs
+                        forkedMode={false}
+                        showQuickSearchTab={false}
+                        showDownloadTab={false}
+                        showAlerts={true}
+                        getQueryStore={() =>
+                            createQueryStore(
+                                this.urlWrapper.query,
+                                this.urlWrapper
                             )
                         }
+                    />
+                </div>
+            );
+        } else {
+            // we don't show the result tabs if we don't have valid query
+            const tabsReady =
+                this.showTabs &&
+                !this.resultsViewPageStore.genesInvalid &&
+                !this.resultsViewPageStore.isQueryInvalid &&
+                this.resultsViewPageStore.customDriverAnnotationReport
+                    .isComplete;
+            return (
+                <>
+                    {// if query invalid(we only check gene count * sample count < 1,000,000 for now), return error page
+                    this.resultsViewPageStore.isQueryInvalid && (
+                        <div
+                            className="alert alert-danger queryInvalid"
+                            style={{ marginBottom: '40px' }}
+                            role="alert"
+                        >
+                            <GeneSymbolValidationError
+                                sampleCount={
+                                    this.resultsViewPageStore.samples.result
+                                        .length
+                                }
+                                queryProductLimit={
+                                    AppConfig.serverConfig.query_product_limit
+                                }
+                                email={
+                                    AppConfig.serverConfig.skin_email_contact
+                                }
+                            />
+                        </div>
+                    )}
 
-                    </div>
-                )
-                }
-            </>);
+                    {this.userMessages.isComplete &&
+                        this.userMessages.result.length > 0 && (
+                            <UserMessager messages={this.userMessages.result} />
+                        )}
+
+                    {(this.resultsViewPageStore.studies.isPending ||
+                        !tabsReady) && (
+                        <LoadingIndicator
+                            isLoading={true}
+                            center={true}
+                            noFade={true}
+                            size={'big'}
+                        ></LoadingIndicator>
+                    )}
+                    {this.resultsViewPageStore.studies.isComplete && (
+                        <>
+                            <Helmet>
+                                <title>
+                                    {buildResultsViewPageTitle(
+                                        this.resultsViewPageStore
+                                            .hugoGeneSymbols,
+                                        this.resultsViewPageStore.studies.result
+                                    )}
+                                </title>
+                            </Helmet>
+                            <div>
+                                <div className={'headBlock'}>
+                                    <QuerySummary
+                                        routingStore={this.props.routing}
+                                        store={this.resultsViewPageStore}
+                                        onToggleQueryFormVisibility={visible => {
+                                            runInAction(() => {
+                                                this.showTabs = visible;
+                                                this.showOQLEditor = false;
+                                            });
+                                        }}
+                                        onToggleOQLEditUIVisibility={
+                                            this.toggleOQLEditor
+                                        }
+                                    />
+
+                                    {this.showOQLEditor && (
+                                        <div className={'quick_oql_edit'}>
+                                            <OQLTextArea
+                                                validateInputGeneQuery={true}
+                                                inputGeneQuery={
+                                                    this.quickOQLQueryStore!
+                                                        .geneQuery
+                                                }
+                                                callback={(...args) => {
+                                                    this.quickOQLQueryStore!.geneQuery =
+                                                        args[2];
+                                                }}
+                                                location={GeneBoxType.DEFAULT}
+                                                submitButton={
+                                                    this.quickOQLSubmitButton
+                                                }
+                                                error={
+                                                    this.quickOQLQueryStore!
+                                                        .submitError
+                                                }
+                                                messages={
+                                                    this.quickOQLQueryStore!
+                                                        .oqlMessages
+                                                }
+                                            />
+                                        </div>
+                                    )}
+                                </div>
+                                {tabsReady && (
+                                    <MSKTabs
+                                        key={this.urlWrapper.hash}
+                                        activeTabId={
+                                            this.resultsViewPageStore.tabId
+                                        }
+                                        unmountOnHide={false}
+                                        onTabClick={(id: string) =>
+                                            this.resultsViewPageStore.handleTabChange(
+                                                id
+                                            )
+                                        }
+                                        className="mainTabs"
+                                        getTabHref={this.getTabHref}
+                                    >
+                                        {this.tabs}
+                                    </MSKTabs>
+                                )}
+                            </div>
+                        </>
+                    )}
+                </>
+            );
         }
     }
 
     public render() {
-        if (this.resultsViewPageStore.studies.isComplete && !this.resultsViewPageStore.tabId) {
-            setTimeout(()=>{
-                this.handleTabChange(this.currentTab(this.resultsViewPageStore.tabId), true);
+        if (
+            this.urlWrapper.isTemporarySessionPendingSave ||
+            this.urlWrapper.isLoadingSession ||
+            !this.resultsViewPageStore.studies.isComplete
+        ) {
+            return (
+                <LoadingIndicator
+                    isLoading={true}
+                    center={true}
+                    noFade={true}
+                    size={'big'}
+                />
+            );
+        }
+
+        if (
+            this.resultsViewPageStore.studies.isComplete &&
+            !this.resultsViewPageStore.tabId
+        ) {
+            setTimeout(() => {
+                this.resultsViewPageStore.handleTabChange(
+                    this.resultsViewPageStore.tabId,
+                    true
+                );
             });
             return null;
         } else {
             return (
-                <PageLayout noMargin={true} hideFooter={true} className={"subhead-dark"}>
-                    {
-                        this.pageContent
-                    }
+                <PageLayout
+                    noMargin={true}
+                    hideFooter={true}
+                    className={'subhead-dark'}
+                >
+                    {this.pageContent}
                 </PageLayout>
-            )
+            );
         }
     }
-
 }
-
