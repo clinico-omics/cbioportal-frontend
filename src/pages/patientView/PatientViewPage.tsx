@@ -105,6 +105,13 @@ export interface PatientViewUrlParams extends QueryParams {
     sampleId?: string;
 }
 
+function hideTabHeader(queryString?: string): boolean {
+    const urlParams = new URLSearchParams(
+        queryString ? queryString : window.location.search
+    );
+    return urlParams.get('hideTabHeader') === 'true';
+}
+
 @inject('routing', 'appStore')
 @observer
 export default class PatientViewPage extends React.Component<
@@ -236,6 +243,10 @@ export default class PatientViewPage extends React.Component<
 
     public get showOldTimeline() {
         return AppConfig.serverConfig.patient_view_use_legacy_timeline;
+    }
+
+    private get tabHeaderVisible() {
+        return !hideTabHeader();
     }
 
     @action.bound
@@ -786,7 +797,12 @@ export default class PatientViewPage extends React.Component<
                                 onTabClick={(id: string) =>
                                     this.urlWrapper.setActiveTab(id)
                                 }
-                                className="mainTabs"
+                                className={
+                                    'mainTabs ' +
+                                    (this.tabHeaderVisible
+                                        ? 'msk-tabs-shown'
+                                        : 'msk-tabs-hidden')
+                                }
                                 getPaginationWidth={WindowStore.getWindowWidth}
                             >
                                 <MSKTab

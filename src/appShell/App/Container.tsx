@@ -45,6 +45,13 @@ function isLocalDBServer() {
     }
 }
 
+function hideHeader(queryString?: string): boolean {
+    const urlParams = new URLSearchParams(
+        queryString ? queryString : window.location.search
+    );
+    return urlParams.get('hideHeader') === 'true';
+}
+
 @observer
 export default class Container extends React.Component<IContainerProps, {}> {
     private get routingStore() {
@@ -53,6 +60,10 @@ export default class Container extends React.Component<IContainerProps, {}> {
 
     private get appStore() {
         return getBrowserWindow().globalStores.appStore;
+    }
+
+    private get headerVisible() {
+        return !hideHeader();
     }
 
     renderChildren() {
@@ -99,7 +110,11 @@ export default class Container extends React.Component<IContainerProps, {}> {
                     />
                 </Helmet>
 
-                <div id="pageTopContainer" className="pageTopContainer">
+                <div
+                    id="pageTopContainer"
+                    className="pageTopContainer"
+                    style={{ display: this.headerVisible ? 'block' : 'none' }}
+                >
                     <UserMessager />
 
                     {shouldShowStudyViewWarning() && <StudyAgreement />}

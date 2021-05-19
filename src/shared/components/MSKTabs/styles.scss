@@ -13,3 +13,8 @@
         }
     }
 }
+
+.msk-tabs-hidden .nav-tabs {
+    // Many styles can impact on nav-tabs, we need to upgrade the level.
+    display: none !important;
+}
