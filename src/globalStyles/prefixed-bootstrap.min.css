@@ -5,6 +5,10 @@
   padding-right: 20px;
   min-width: 400px; }
 
+.d-none {
+  display: none;
+}
+
 .framedImage {
   margin: 20px 0;
   border: 1px solid #eee !important;

@@ -38,6 +38,58 @@
 <body>
 
 <div id="reactRoot"></div>
+<script>
+    var _hmt = _hmt || [];
+    (function() {
+      var hm = document.createElement("script");
+      hm.src = "https://hm.baidu.com/hm.js?aab9f43048b3553eabfd8eb96ec00360";
+      var s = document.getElementsByTagName("script")[0]; 
+      s.parentNode.insertBefore(hm, s);
+    })();
+</script>
+<script>
+  window.addEventListener('message', (event) => {
+    const data = event.data;
 
+    function interceptClickEvent(e) {
+      var target = e.target || e.srcElement;
+      if (target.tagName === 'A') {
+        let url = new URL(target.getAttribute('href'));
+
+        //put your logic here...
+        if (url.hostname == 'data.3steps.cn') {
+          target.setAttribute('target', '_self');
+          console.log('interceptClickEvent: ', target);
+        } else {
+          target.setAttribute('target', '_blank');
+          console.log('interceptClickEvent(Set _blank): ', target);
+        }
+      }
+    };
+
+    if (data.resizeIframe) {
+      const element = document.querySelector('#mainColumn');
+      element.setAttribute('style', 'min-height: unset;');
+      const pageHeight = document.querySelector('#reactRoot').scrollHeight;
+      console.log('resizeIframe: ', pageHeight);
+      window.parent.postMessage(pageHeight, "*");
+    }
+
+    if (data.hideHeader) {
+      let style = '.cbioportal-frontend .pageTopContainer { display: none !important; }'; 
+      var css = document.createElement('style'); 
+      css.type = 'text/css'; 
+      css.appendChild(document.createTextNode(style)); 
+      document.head.appendChild(css);
+
+      //listen for link click events at the document level
+      if (document.addEventListener) {
+        document.addEventListener('click', interceptClickEvent);
+      } else if (document.attachEvent) {
+        document.attachEvent('onclick', interceptClickEvent);
+      }
+    }
+  });
+</script>
 </body>
 </html>

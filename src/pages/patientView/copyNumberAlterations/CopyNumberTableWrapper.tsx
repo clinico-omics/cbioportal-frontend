@@ -333,8 +333,8 @@ export default class CopyNumberTableWrapper extends React.Component<
                     <CNATableComponent
                         columns={orderedColumns}
                         data={this.props.data}
-                        initialSortColumn="Annotation"
-                        initialSortDirection="desc"
+                        initialSortColumn="Gene"
+                        initialSortDirection="asc"
                         initialItemsPerPage={10}
                         itemsLabel="Copy Number Alteration"
                         itemsLabelPlural="Copy Number Alterations"

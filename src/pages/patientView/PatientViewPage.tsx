@@ -1475,7 +1475,9 @@ export default class PatientViewPage extends React.Component<
                                     className={'patient-clinical-data-tab'}
                                 >
                                     <div className="clearfix">
-                                        <h3 className={'pull-left'}>Patient</h3>
+                                        <h3 className="pull-left d-none">
+                                            Patient
+                                        </h3>
                                         {this.patientViewPageStore
                                             .clinicalDataPatient.isComplete && (
                                             <ClinicalInformationPatientTable
@@ -1489,32 +1491,44 @@ export default class PatientViewPage extends React.Component<
                                         )}
                                     </div>
 
-                                    <div className="clearfix">
-                                        <h3 className={'pull-left'}>Samples</h3>
+                                    <div className="clearfix d-none">
                                         {this.patientViewPageStore
                                             .clinicalDataGroupedBySample
                                             .isComplete && (
-                                            <ClinicalInformationSamples
-                                                samples={
-                                                    this.patientViewPageStore
-                                                        .clinicalDataGroupedBySample
-                                                        .result!
-                                                }
-                                            />
+                                            <>
+                                                <h3 className={'pull-left'}>
+                                                    Samples
+                                                </h3>
+                                                <ClinicalInformationSamples
+                                                    samples={
+                                                        this
+                                                            .patientViewPageStore
+                                                            .clinicalDataGroupedBySample
+                                                            .result!
+                                                    }
+                                                />
+                                            </>
                                         )}
                                     </div>
 
-                                    <h2 className={'divider'}>Timeline Data</h2>
-
-                                    {this.patientViewPageStore.clinicalEvents
-                                        .isComplete && (
-                                        <ClinicalEventsTables
-                                            clinicalEvents={
-                                                this.patientViewPageStore
-                                                    .clinicalEvents.result
-                                            }
-                                        />
-                                    )}
+                                    <div className="d-none">
+                                        {this.patientViewPageStore
+                                            .clinicalEvents.isComplete && (
+                                            <>
+                                                <h2 className={'divider'}>
+                                                    Timeline Data
+                                                </h2>
+                                                <ClinicalEventsTables
+                                                    clinicalEvents={
+                                                        this
+                                                            .patientViewPageStore
+                                                            .clinicalEvents
+                                                            .result
+                                                    }
+                                                />
+                                            </>
+                                        )}
+                                    </div>
                                 </MSKTab>
 
                                 <MSKTab
