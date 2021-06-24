@@ -67,12 +67,16 @@
       }
     };
 
-    if (data.resizeIframe) {
+    if (data.resizeIframe && data.iframeId && data.element) {
+      // TODO: This is a trick way, another best way?
       const element = document.querySelector('#mainColumn');
-      element.setAttribute('style', 'min-height: unset;');
-      const pageHeight = document.querySelector('#reactRoot').scrollHeight;
-      console.log('resizeIframe: ', pageHeight);
-      window.parent.postMessage(pageHeight, "*");
+      if (element) {
+        element.setAttribute('style', 'min-height: unset;');
+      }
+
+      const pageHeight = document.querySelector(data.element).clientHeight;
+      console.log('resizeIframe: ', pageHeight, document.querySelector(data.element).getBoundingClientRect());
+      window.parent.postMessage({ iframeId: data.iframeId, pageHeight: pageHeight }, "*");
     }
 
     if (data.hideHeader) {
